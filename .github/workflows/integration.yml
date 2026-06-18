@@ -21,10 +21,11 @@ jobs:
           - 6006:6006
           - 4317:4317
         options: >-
-          --health-cmd "wget -qO- http://localhost:6006 || exit 1"
+          --health-cmd "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:6006')\""
           --health-interval 5s
           --health-timeout 3s
           --health-retries 20
+          --health-start-period 30s
     env:
       PHOENIX_URL: http://localhost:6006
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
