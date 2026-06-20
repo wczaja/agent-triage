@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 #
-# demo.sh — drive docket's local end-to-end flow as a screen-recordable demo.
+# demo.sh — drive docket's end-to-end flow as a screen-recordable demo.
 #
-# Built on the project's existing acceptance mechanism (the same fixture and
-# ingest script the gated integration tests use), so the demo is deterministic
-# and reproducible. Four beats, one per ENTER press, paced for a ~75s recording:
+# Uses LangSmith as the trace backend (the project's primary e2e path) plus the
+# acceptance fixture and its LangSmith ingest script, so the run is
+# deterministic and reproducible. Four beats, one per ENTER press, paced for a
+# ~75s recording:
 #
-#   1. seed 60 synthetic traces (20 clean + 40 seeded failures) into Phoenix
-#   2. triage them read-only — classify, cluster, draft; nothing leaves the box
+#   1. seed 60 synthetic traces (20 clean + 40 seeded failures) into LangSmith
+#   2. triage them read-only — classify, cluster, draft; nothing is posted
 #   3. add a GitHub tracker and auto-post clusters at 'high' severity or above
 #   4. re-run the identical command -> idempotent no-op (every cluster skipped)
 #
@@ -15,20 +16,21 @@
 #
 # Prerequisites:
 #   - docket installed             uv pip install -e ".[dev]"   (or pip)
-#   - Phoenix running locally      docker compose up -d phoenix
+#   - LANGSMITH_API_KEY            a free LangSmith account (smith.langchain.com)
+#   - LANGSMITH_PROJECT            project name (default: docket-demo)
 #   - ANTHROPIC_API_KEY            llm_judge detectors
 #   - OPENAI_API_KEY               clustering embeddings
 #   - GITHUB_TOKEN / GITHUB_OWNER / GITHUB_REPO   a throwaway repo for drafts
 #
-# Optional overrides (env): PHOENIX_URL, DOCKET_DEMO_RUBRIC,
-# DOCKET_DEMO_CONCURRENCY, DOCKET_DEMO_SINCE.
+# Optional overrides (env): DOCKET_DEMO_RUBRIC, DOCKET_DEMO_CONCURRENCY,
+# DOCKET_DEMO_SINCE, LANGSMITH_PROJECT.
 #
 set -euo pipefail
 
-PHOENIX_URL="${PHOENIX_URL:-http://localhost:6006}"
 RUBRIC="${DOCKET_DEMO_RUBRIC:-docket.dev/builtin/agents/v1}"
 CONCURRENCY="${DOCKET_DEMO_CONCURRENCY:-8}"
 SINCE="${DOCKET_DEMO_SINCE:-1h}"
+LANGSMITH_PROJECT="${LANGSMITH_PROJECT:-docket-demo}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -51,7 +53,8 @@ require_env() {
   fi
 }
 
-require_env ANTHROPIC_API_KEY OPENAI_API_KEY GITHUB_TOKEN GITHUB_OWNER GITHUB_REPO
+require_env LANGSMITH_API_KEY ANTHROPIC_API_KEY OPENAI_API_KEY \
+  GITHUB_TOKEN GITHUB_OWNER GITHUB_REPO
 if ! command -v docket >/dev/null 2>&1; then
   echo "ERROR: 'docket' is not on PATH. Install with: uv pip install -e \".[dev]\"" >&2
   exit 1
@@ -64,28 +67,33 @@ bold "docket — an observability-agnostic triage runtime for LLM agent traces"
 dim  "reads traces  ▸  classifies failure modes  ▸  clusters  ▸  drafts tracker issues"
 pause
 
-# ── 1. Seed ─────────────────────────────────────────────────────────────────
-dim "# Seed a local Phoenix with 60 synthetic traces: 20 clean + 40 seeded"
-dim "# failures, 8 each across hallucination / infinite-loop / premature-"
-dim "# termination / unsafe-tool-call / refusal-leakage."
-python scripts/ingest_acceptance_traces.py --phoenix-url "$PHOENIX_URL"
+# ── 1. Seed ───────────────────────────────────────────────────────────────────
+dim "# Seed LangSmith with 60 synthetic traces: 20 clean + 40 seeded failures,"
+dim "# 8 each across hallucination / infinite-loop / premature-termination /"
+dim "# unsafe-tool-call / refusal-leakage."
+python scripts/ingest_acceptance_traces_langsmith.py --project "$LANGSMITH_PROJECT"
+dim "# (LangSmith indexes asynchronously — give it a few seconds before triage.)"
 pause
 
-# ── 2. Triage, read-only ────────────────────────────────────────────────────
+# ── 2. Triage, read-only ──────────────────────────────────────────────────────
 dim "# Triage the window: classify every trace, cluster the positives, draft"
-dim "# one issue per cluster. Read-only by default — nothing leaves the box."
+dim "# one issue per cluster. Read-only by default — nothing is posted yet."
 docket run \
-  --backend phoenix --phoenix-url "$PHOENIX_URL" \
+  --backend langsmith \
+  --langsmith-api-key "$LANGSMITH_API_KEY" \
+  --langsmith-project "$LANGSMITH_PROJECT" \
   --rubric "$RUBRIC" \
   --since "$SINCE" \
   --concurrency "$CONCURRENCY"
 pause
 
-# ── 3. Post to the tracker ──────────────────────────────────────────────────
+# ── 3. Post to the tracker ────────────────────────────────────────────────────
 dim "# Same run, now with a tracker. Auto-post clusters whose severity is"
 dim "# 'high' or above; everything below stays queued locally for review."
 docket run \
-  --backend phoenix --phoenix-url "$PHOENIX_URL" \
+  --backend langsmith \
+  --langsmith-api-key "$LANGSMITH_API_KEY" \
+  --langsmith-project "$LANGSMITH_PROJECT" \
   --tracker github \
   --github-token "$GITHUB_TOKEN" \
   --github-owner "$GITHUB_OWNER" \
@@ -99,11 +107,13 @@ dim "#    tool-call, premature-termination (high). refusal-leakage (medium)"
 dim "#    stays in the local queue. Switch to the repo's Issues tab now."
 pause
 
-# ── 4. Re-run = idempotent no-op ────────────────────────────────────────────
+# ── 4. Re-run = idempotent no-op ──────────────────────────────────────────────
 dim "# Run the EXACT same command again. The run_id is a hash of the inputs,"
 dim "# and dedup keys off label + embedded provenance, so re-runs do nothing."
 docket run \
-  --backend phoenix --phoenix-url "$PHOENIX_URL" \
+  --backend langsmith \
+  --langsmith-api-key "$LANGSMITH_API_KEY" \
+  --langsmith-project "$LANGSMITH_PROJECT" \
   --tracker github \
   --github-token "$GITHUB_TOKEN" \
   --github-owner "$GITHUB_OWNER" \

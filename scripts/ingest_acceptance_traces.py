@@ -8,6 +8,12 @@ Usage::
 Posts the 60-trace fixture (20 clean + 40 seeded failures) from
 `docket._acceptance` to Phoenix's OTLP HTTP endpoint at /v1/traces.
 Prints a one-line manifest per trace plus a summary.
+
+KNOWN LIMITATION: current Phoenix builds accept only protobuf
+(application/x-protobuf) on /v1/traces and reject this script's JSON body
+with HTTP 415. Until this ingest is reworked to send protobuf, use the
+LangSmith path (ingest_acceptance_traces_langsmith.py) for an end-to-end
+run. See docs/local-phoenix.md and docs/demo.md.
 """
 
 import argparse
@@ -34,6 +40,19 @@ async def ingest_all(phoenix_url: str) -> int:
                 headers={"content-type": "application/json"},
             )
             modes_label = ",".join(modes) if modes else "clean"
+            if response.status_code == 415:
+                sys.stderr.write(
+                    f"FAIL  {label:14}  expected={modes_label:24}  "
+                    f"trace_id={trace.trace_id}  status=415 (unsupported content type)\n\n"
+                    "Phoenix's OTLP endpoint at /v1/traces accepts only protobuf "
+                    "(application/x-protobuf), not the JSON this script posts, so\n"
+                    "ingestion cannot proceed against current Phoenix builds. Until "
+                    "this script is reworked to send protobuf, use the LangSmith path:\n"
+                    "  python scripts/ingest_acceptance_traces_langsmith.py --project <name>\n"
+                    "See docs/demo.md and docs/local-phoenix.md.\n"
+                )
+                failures += 1
+                break
             if response.status_code >= 400:
                 sys.stderr.write(
                     f"FAIL  {label:14}  expected={modes_label:24}  "
