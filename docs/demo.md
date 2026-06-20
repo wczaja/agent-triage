@@ -12,10 +12,12 @@ built around). The driver script is [`scripts/demo.sh`](../scripts/demo.sh); it
 steps through four beats, one per ENTER press, so you can narrate (or cut)
 between them.
 
-> **Why not a fully-local Phoenix backend?** The shipped Phoenix ingest script
-> posts OTLP as JSON, but current Phoenix builds accept only protobuf on
-> `/v1/traces` (HTTP 415 otherwise). Until that ingest path is reworked,
-> LangSmith is the reliable demo backend. See [`local-phoenix.md`](local-phoenix.md).
+> **Prefer a fully-local backend?** The demo uses LangSmith because it needs no
+> Docker. To run locally instead, bring up Phoenix with
+> `docker compose up -d phoenix`, seed with
+> `python scripts/ingest_acceptance_traces.py`, and pass
+> `--backend phoenix --phoenix-url http://localhost:6006` to `docket run`. See
+> [`local-phoenix.md`](local-phoenix.md).
 
 ---
 

@@ -18,15 +18,9 @@ python scripts/ingest_acceptance_traces.py --phoenix-url http://localhost:6006
 ```
 
 This posts 60 synthetic traces (20 clean + 40 with seeded failures, 8 each
-across five of the `agents/v1` modes). The script prints a one-line manifest per
-trace plus a summary.
-
-> **Known limitation.** This script posts OTLP as JSON, but current Phoenix
-> builds accept only protobuf (`application/x-protobuf`) on `/v1/traces` and
-> reject JSON with HTTP 415. Until the script is reworked to send protobuf, run
-> the end-to-end demo against LangSmith instead
-> (`scripts/ingest_acceptance_traces_langsmith.py`); see
-> [`e2e-testing.md`](e2e-testing.md) and [`demo.md`](demo.md).
+across five of the `agents/v1` modes) to Phoenix's OTLP endpoint as protobuf
+(`application/x-protobuf`, the only OTLP encoding current Phoenix builds
+accept). The script prints a one-line manifest per trace plus a summary.
 
 ## 3. Run triage against Phoenix
 
