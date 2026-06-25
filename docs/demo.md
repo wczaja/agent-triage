@@ -124,7 +124,105 @@ Tips:
   the labels.
 - **Design for muted autoplay.** Social video autoplays silent — lean on the
   script's on-screen comments and add a few short text overlays
-  ("read-only by default", "4 issues filed, deduped", "re-run → 0 new").
+  ("read-only by default", "4 issues filed, deduped").
+
+---
+
+## Producing the assets (GIF + MP4)
+
+Two artifacts, two pipelines. The terminal-only **GIF** (asciinema → agg) is the
+low-friction README/HN asset; the **MP4** with the live GitHub Issues cut is the
+higher-polish Reddit/Twitter asset. Both work muted — no voiceover.
+
+### Shared prep
+
+- Big terminal font (~18–20pt), minimal prompt (`export PS1='$ '`), clear
+  scrollback (`Cmd-K`). Keep the window compact (≈ 92×28) so text stays legible
+  after downscaling.
+- Export the env vars (see [Prerequisites](#prerequisites)); they're passed via
+  env, so no secrets render on screen.
+- Rehearse once off-camera, then [close the issues](#cleanup) so the recorded
+  run posts into an empty tracker.
+
+### A. Terminal GIF — asciinema → agg (README + HN)
+
+No browser needed: the run's `## Tracker dedup` table prints each created issue
+with its number and URL, so the payoff is already on screen.
+
+```bash
+brew install asciinema agg gifsicle      # one-time
+
+# 1. Record. Sized small for a crisp GIF. A fresh shell starts; run the demo,
+#    step through the beats with ENTER, then `exit` to stop the recording.
+asciinema rec docs/demo.cast --cols 92 --rows 28 --idle-time-limit 2
+#    ./scripts/demo.sh
+#    exit
+
+# 2. Preview; re-record if a take is fumbled.
+asciinema play docs/demo.cast
+
+# 3. Render the GIF. --speed and --idle-time-limit cut the API-wait dead time.
+agg docs/demo.cast docs/demo.gif \
+  --font-size 20 --line-height 1.4 --speed 1.4 --idle-time-limit 1 --theme asciinema
+
+# 4. Shrink for the README (aim < ~8 MB).
+gifsicle -O3 --lossy=80 --colors 128 docs/demo.gif -o docs/demo.gif
+```
+
+Embed in the README — GitHub autoplays and loops GIFs inline:
+
+```markdown
+![docket demo](docs/demo.gif)
+```
+
+Useful `agg` flags: `--theme` (`asciinema`, `dracula`, `monokai`,
+`solarized-dark`, …), `--font-size`, `--speed`, `--idle-time-limit` (cap idle
+gaps, seconds), `--fps-cap` (default 30; drop to 24 for a smaller file),
+`--last-frame-duration` (hold the final summary card). Full list: `agg --help`
+or <https://docs.asciinema.org/manual/agg/>. Bonus HN asset:
+`asciinema upload docs/demo.cast` gives a shareable asciinema.org link with
+selectable text.
+
+### B. MP4 with the GitHub payoff (Reddit + Twitter/X)
+
+The browser "money shot" can't be a GIF (huge + color-banded), so this path is a
+screen recording.
+
+```bash
+brew install ffmpeg      # for compression / conversion
+```
+
+1. Pre-open an **empty** GitHub Issues tab (after cleanup).
+2. Record with **QuickTime** (`Cmd-Shift-5` → record a region around the
+   terminal) or **Screen Studio** (auto-zoom + keystroke captions). Run
+   `./scripts/demo.sh`; after beat 2 posts, `Cmd-Tab` to the browser, refresh so
+   the 4 issues appear, hover one to show the labels. Stop.
+3. Edit in **iMovie** (or Screen Studio):
+   - Trim dead air; **speed-ramp the API-wait stretches 3–6×**; keep the report
+     table and the issue reveal at full speed.
+   - Add muted-first text overlays ("read-only by default", "4 issues filed,
+     deduped").
+4. Export H.264 MP4, 1080p. To compress a raw `.mov`:
+
+```bash
+ffmpeg -i raw.mov -vf "scale=1280:-2" -c:v libx264 -crf 23 -preset slow \
+  -pix_fmt yuv420p -movflags +faststart docs/demo.mp4
+```
+
+Upload the MP4 *natively* to Reddit (don't link out).
+
+### Conversions
+
+```bash
+# GIF -> MP4 (e.g. an MP4 of the terminal-only cut):
+ffmpeg -i docs/demo.gif -movflags faststart -pix_fmt yuv420p \
+  -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" docs/demo.mp4
+
+# MP4 -> high-quality GIF (two-pass palette, if you screen-recorded instead):
+ffmpeg -i docs/demo.mp4 -vf "fps=15,scale=900:-1:flags=lanczos,palettegen" -y /tmp/pal.png
+ffmpeg -i docs/demo.mp4 -i /tmp/pal.png \
+  -filter_complex "fps=15,scale=900:-1:flags=lanczos[x];[x][1:v]paletteuse" -y docs/demo.gif
+```
 
 ---
 
