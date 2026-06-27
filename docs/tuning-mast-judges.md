@@ -17,18 +17,24 @@ F1 against the human labels, plus the individual disagreements to iterate on.
 
 ## License / data note — read first
 
-docket **does not ship or redistribute any MAD data.** The MAST GitHub repo is
-unlicensed, and MAD lives on HuggingFace
-([`mcemri/MAD`](https://huggingface.co/datasets/mcemri/MAD)) under whatever terms
-its dataset card states. This harness only *reads* a copy of MAD that **you**
-obtain, under those terms:
+The MAD dataset ([`mcemri/MAD`](https://huggingface.co/datasets/mcemri/MAD)) is
+licensed **[CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/)** — free to
+use and redistribute, including commercially, **provided you give attribution and
+indicate any changes**.
 
-- check the dataset card's license before using it, and
-- get the data yourself — either download a file and pass `--data PATH`, or let
-  the script fetch it at runtime with `--hf` (which needs `huggingface_hub`
-  installed and network access to HuggingFace; some environments block it).
+This repo still ships **no MAD data by default**; the harness reads a copy you
+obtain — `--data PATH` (a file you downloaded) or `--hf` (fetched at runtime via
+`huggingface_hub`, which needs network access to HuggingFace; some environments
+block it). Because CC-BY-4.0 permits redistribution, committing a small MAD
+*subset* as a CI fixture is also allowed (with attribution + a note of changes);
+it is simply not done automatically.
 
-Nothing is written back to MAD, and no MAD content is committed to this repo.
+### Attribution
+
+> MAD dataset (`mcemri/MAD`), © the MAST authors, licensed under CC-BY-4.0
+> (<https://creativecommons.org/licenses/by/4.0/>). Cemri, Pan, Yang, et al.,
+> *Why Do Multi-Agent LLM Systems Fail?*, arXiv:2503.13657, 2025. Used here
+> unmodified for judge evaluation.
 
 ## Prerequisites
 

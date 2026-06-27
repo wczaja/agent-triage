@@ -7,17 +7,25 @@ per-mode precision/recall/F1 and iterate on the judge prompts.
 
 LICENSE / DATA NOTE
 -------------------
-docket does NOT ship or redistribute any MAD data. The MAST GitHub repo is
-unlicensed and the dataset lives on HuggingFace (`mcemri/MAD`) under whatever
-terms its dataset card states. This script only *reads* a copy of MAD that you
-obtain yourself, under those terms:
+The MAD dataset is licensed CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/):
+free to use and redistribute, including commercially, provided you give
+attribution and indicate any changes (see ATTRIBUTION below).
+
+This repo still ships NO MAD data by default — the script reads a copy you obtain:
 
   - `--data PATH`  point at a MAD JSON file you downloaded, or
-  - `--hf`         download it at runtime via `huggingface_hub` (which you must
-                   install separately; this also requires network access to
-                   HuggingFace, which some environments block).
+  - `--hf`         download it at runtime via `huggingface_hub` (install it
+                   separately; needs network access to HuggingFace, which some
+                   environments block).
 
-Nothing is written back to MAD and no MAD content is committed to this repo.
+Committing a small MAD subset as a CI fixture is permitted under CC-BY-4.0
+(with attribution + a note of any changes); it just isn't done automatically.
+
+ATTRIBUTION
+-----------
+MAD dataset (`mcemri/MAD` on HuggingFace), (c) the MAST authors, CC-BY-4.0.
+Cemri, Pan, Yang, et al., "Why Do Multi-Agent LLM Systems Fail?",
+arXiv:2503.13657, 2025. Used here unmodified for judge evaluation.
 
 USAGE
 -----
@@ -56,6 +64,12 @@ from docket.rubric.spec import Mode, Rubric
 RUBRIC_URI = "docket.dev/builtin/mast/v1"
 HF_REPO_ID = "mcemri/MAD"
 HF_DEFAULT_FILENAME = "MAD_human_labelled_dataset.json"
+
+# Attribution required by MAD's CC-BY-4.0 license; printed on every run.
+MAD_ATTRIBUTION = (
+    "MAD dataset (mcemri/MAD), (c) the MAST authors, CC-BY-4.0 "
+    "(https://creativecommons.org/licenses/by/4.0/); Cemri et al. 2025, arXiv:2503.13657."
+)
 
 # docket mast/v1 mode id -> MAST failure-mode code (see taxonomy in the paper).
 MAST_FM_BY_MODE_ID: dict[str, str] = {
@@ -437,6 +451,7 @@ def write_disagreements(path: Path, outcomes: Sequence[ModeOutcome]) -> int:
 
 async def run(args: argparse.Namespace) -> int:
     records = load_records(args)
+    print(MAD_ATTRIBUTION)
     if args.inspect:
         print(inspect_records(records, args.inspect))
         return 0

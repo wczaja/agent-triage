@@ -21,8 +21,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `mast/v1` `llm_judge` detectors against the MAD human-labelled dataset
   (Cemri et al., arXiv:2503.13657) and reports per-mode precision/recall/F1
   plus disagreements, for iterating on the judge prompts. Maintainer tool;
-  ships no MAD data — the dataset is fetched/provided by the user under its
-  own HuggingFace terms. Documented in `docs/tuning-mast-judges.md`.
+  ships no MAD data by default — the dataset (CC-BY-4.0) is fetched/provided
+  by the user, with attribution. Documented in `docs/tuning-mast-judges.md`.
 
 ## [1.0.0] - 2026-06-12
 
